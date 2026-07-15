@@ -1,0 +1,29 @@
+# Changelog
+
+All notable changes to `req_managed_agents_host` are documented here.
+
+## v0.1.0
+
+Initial release: a durable, single-node session host over `req_managed_agents`.
+
+### Added
+
+- `ReqManagedAgents.Host.send_message/3` — the whole public surface. Finds, starts, or
+  reattaches the live session for a caller-supplied external id, runs one turn to a terminal
+  via `ReqManagedAgents.Session.run/2`, and returns the RMA `SessionResult`.
+- `ReqManagedAgents.Host.Config` — validated, struct-first host configuration
+  (`:provider`, `:handler`, `:store` required; optional `:agent`/`:environment` handles,
+  `:idle_timeout_ms`, `:timeout_ms`, `:metadata`).
+- `ReqManagedAgents.Host.Store` behaviour, with two implementations:
+  - `Store.ETS` — process-local, in-memory; gone when its owner process stops.
+  - `Store.DETS` — file-backed; the locator survives a full BEAM restart.
+- `ReqManagedAgents.Host.Locator` (+ `Locator.Record`) — the durable
+  `external_id -> upstream identity` map that backs reattach and idle-detach.
+- `ReqManagedAgents.Host.SessionServer` — a per-external-id `GenServer` driving one turn at a
+  time. Idle-detaches after `idle_timeout_ms`; its child spec is `restart: :temporary`, so
+  both idle-detach and a crash simply end the process — the next `send_message/3` re-creates
+  it and reattaches through the `Locator` rather than being auto-restarted in place.
+- `ReqManagedAgents.Host.SessionSupervisor` — a `DynamicSupervisor` holding one live session
+  per external id; killing one server never affects a sibling.
+- `ReqManagedAgents.Host.Application` — starts the session `Registry` and
+  `SessionSupervisor` for `mix.exs`'s `mod:`.

@@ -37,6 +37,19 @@ defmodule ReqManagedAgents.Host.SessionServer do
     GenServer.start_link(__MODULE__, {external_id, config}, name: via(external_id))
   end
 
+  # A `SessionServer` is a reattachable *live handle*, not durable state — the `Locator` is
+  # the durable state. `use GenServer`'s default child spec is `restart: :permanent`, which
+  # under a supervisor means even a `:normal` exit (idle-detach, `handle_info(:idle_timeout,
+  # _)`) gets auto-restarted, defeating idle-detach entirely on the supervised path. Override
+  # to `:temporary`: idle-detach and crash both just end this process; the next `deliver/2`
+  # (via `SessionSupervisor.start_or_get/2`) starts a fresh one and reattaches through the
+  # `Locator`.
+  @doc false
+  @spec child_spec({Locator.external_id(), Config.t()}) :: Supervisor.child_spec()
+  def child_spec({external_id, %Config{}} = arg) do
+    %{id: {__MODULE__, external_id}, start: {__MODULE__, :start_link, [arg]}, restart: :temporary}
+  end
+
   @doc "Run one turn: deliver `message` and block for the resulting `SessionResult`."
   @spec deliver(GenServer.server(), String.t()) :: {:ok, SessionResult.t()} | {:error, term()}
   def deliver(server, message), do: GenServer.call(server, {:send, message}, :infinity)
