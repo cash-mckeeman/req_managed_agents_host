@@ -5,10 +5,8 @@ defmodule ReqManagedAgents.Host.SessionServerTest do
   alias ReqManagedAgents.Host.Store.ETS
   alias ReqManagedAgents.SessionResult
 
-  setup_all do
-    start_supervised!({Registry, keys: :unique, name: ReqManagedAgents.Host.Registry})
-    :ok
-  end
+  # ReqManagedAgents.Host.Registry is started by ReqManagedAgents.Host.Application (mix.exs
+  # `mod:`), which Mix boots automatically for `mix test` — no manual Registry start needed here.
 
   defp ets_store do
     name = :"session_server_test_#{System.unique_integer([:positive])}"

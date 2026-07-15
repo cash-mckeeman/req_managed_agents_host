@@ -23,8 +23,7 @@ defmodule ReqManagedAgentsHost.MixProject do
   end
 
   def application do
-    # `mod: {ReqManagedAgents.Host.Application, []}` is added in the SessionSupervisor task.
-    [extra_applications: [:logger]]
+    [mod: {ReqManagedAgents.Host.Application, []}, extra_applications: [:logger]]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
