@@ -77,7 +77,7 @@ defmodule ReqManagedAgents.Host.SessionServer do
 
   @spec run_turn(t(), String.t()) :: {:ok, SessionResult.t()} | {:error, term()}
   defp run_turn(%__MODULE__{config: cfg, external_id: external_id}, message) do
-    base = [prompt: message, handler: cfg.handler]
+    base = [prompt: message, handler: cfg.handler, timeout: cfg.timeout_ms]
 
     opts =
       case existing_session_id(cfg.store, external_id) do
@@ -123,7 +123,8 @@ defmodule ReqManagedAgents.Host.SessionServer do
           Record.new(external_id,
             session_id: session_id,
             agent_id: handle_id(cfg.agent, :agent_id),
-            environment_id: handle_id(cfg.environment, :environment_id)
+            environment_id: handle_id(cfg.environment, :environment_id),
+            metadata: cfg.metadata
           )
       end
 

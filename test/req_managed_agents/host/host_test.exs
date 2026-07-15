@@ -92,6 +92,27 @@ defmodule ReqManagedAgents.Host.HostTest do
     assert {:error, {:invalid_config, _}} = Host.send_message("x", "hi", [])
   end
 
+  test "Config timeout_ms threads through to the provider's :timeout opt (I1)" do
+    id = external_id()
+    store = ets_store()
+    opts = Keyword.put(base_opts(store), :timeout_ms, 1_234)
+
+    assert {:ok, %SessionResult{}} = Host.send_message(id, "hello", opts)
+
+    assert 1_234 in StubProvider.opened_timeouts()
+  end
+
+  test "Config metadata persists into the Record and is reachable via Locator.list_by/2 (I2)" do
+    id = external_id()
+    store = ets_store()
+    opts = Keyword.put(base_opts(store), :metadata, %{tenant: "acme"})
+
+    assert {:ok, %SessionResult{}} = Host.send_message(id, "hello", opts)
+
+    assert {:ok, %Record{metadata: %{tenant: "acme"}}} = Locator.fetch(store, id)
+    assert [%Record{external_id: ^id}] = Locator.list_by(store, %{tenant: "acme"})
+  end
+
   test "supervised idle-detach stops through the DynamicSupervisor and is NOT restarted (guards Step 0)" do
     id = external_id()
     store = ets_store()

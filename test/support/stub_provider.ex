@@ -28,6 +28,7 @@ defmodule StubProvider do
   def open(opts, _subscriber) do
     sid = opts[:session_id] || "sess-#{System.unique_integer([:positive])}"
     record(:opened_with, sid)
+    record(:opened_timeout, opts[:timeout])
     {:ok, %{session_id: sid, resume: opts[:session_id] != nil}}
   end
 
@@ -85,13 +86,19 @@ defmodule StubProvider do
   @spec delivered_messages() :: [String.t()]
   def delivered_messages, do: ensure_recorder() |> Agent.get(& &1.delivered) |> Enum.reverse()
 
+  @doc "`:timeout` opts `open/2` has seen, oldest first (nil where the caller omitted it)."
+  @spec opened_timeouts() :: [term()]
+  def opened_timeouts, do: ensure_recorder() |> Agent.get(& &1.opened_timeout) |> Enum.reverse()
+
   defp record(key, value) do
     recorder = ensure_recorder()
     Agent.update(recorder, &Map.update!(&1, key, fn list -> [value | list] end))
   end
 
   defp ensure_recorder do
-    case Agent.start(fn -> %{opened_with: [], delivered: []} end, name: @recorder) do
+    case Agent.start(fn -> %{opened_with: [], delivered: [], opened_timeout: []} end,
+           name: @recorder
+         ) do
       {:ok, pid} -> pid
       {:error, {:already_started, pid}} -> pid
     end
