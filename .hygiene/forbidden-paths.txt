@@ -1,0 +1,4 @@
+^docs/superpowers/
+^docs/qa/
+^docs/qa-runs/
+^\.superpowers/

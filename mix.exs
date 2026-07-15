@@ -18,7 +18,8 @@ defmodule ReqManagedAgentsHost.MixProject do
       package: package(),
       name: "req_managed_agents_host",
       source_url: @source_url,
-      docs: docs()
+      docs: docs(),
+      dialyzer: dialyzer()
     ]
   end
 
@@ -48,6 +49,17 @@ defmodule ReqManagedAgentsHost.MixProject do
   end
 
   defp docs do
-    [main: "readme", extras: ["README.md"], source_ref: "v#{@version}"]
+    [main: "readme", extras: ["README.md", "CHANGELOG.md", "LICENSE"], source_ref: "v#{@version}"]
+  end
+
+  defp dialyzer do
+    [
+      # Keep PLTs under priv/plts so CI can cache them across runs.
+      plt_local_path: "priv/plts",
+      plt_core_path: "priv/plts",
+      # :ex_unit — test/support (StoreContract) imports ExUnit.Assertions and CI
+      # dialyzes under MIX_ENV=test; :mix covers any Mix.* calls in tooling.
+      plt_add_apps: [:mix, :ex_unit]
+    ]
   end
 end

@@ -25,5 +25,5 @@ Initial release: a durable, single-node session host over `req_managed_agents`.
   it and reattaches through the `Locator` rather than being auto-restarted in place.
 - `ReqManagedAgents.Host.SessionSupervisor` — a `DynamicSupervisor` holding one live session
   per external id; killing one server never affects a sibling.
-- `ReqManagedAgents.Host.Application` — starts the session `Registry` and
-  `SessionSupervisor` for `mix.exs`'s `mod:`.
+- An OTP application (the `mod:` entry in `mix.exs`) starts the session `Registry` and
+  the `SessionSupervisor`.
