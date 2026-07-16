@@ -32,7 +32,7 @@ defmodule ReqManagedAgentsHost.MixProject do
 
   defp deps do
     [
-      {:req_managed_agents, "~> 0.9"},
+      {:req_managed_agents, "~> 0.10"},
       {:jason, "~> 1.4"},
       {:mox, "~> 1.1", only: :test},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},

@@ -57,4 +57,27 @@ defmodule ReqManagedAgents.Host.SessionServerTest do
     assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 500
     assert {:ok, %Record{}} = Locator.fetch(cfg.store, "thread-3")
   end
+
+  describe "transcript persistence" do
+    test "a provider emitting a transcript gets it stored under {:transcript, external_id}" do
+      {:ok, cfg} =
+        Config.new(provider: StubLocalProvider, handler: EchoHandler, store: ets_store())
+
+      {:ok, pid} = SessionServer.start_link({"thread-4", cfg})
+
+      assert {:ok, %SessionResult{}} = SessionServer.deliver(pid, "hello")
+
+      assert {:ok, [_ | _] = messages} = Locator.fetch_transcript(cfg.store, "thread-4")
+      assert Enum.any?(messages, &(&1["content"] == "hello"))
+    end
+
+    test "a provider without transcript/1 stores nothing (CMA-shaped no-op)" do
+      {:ok, cfg} = Config.new(provider: StubProvider, handler: EchoHandler, store: ets_store())
+      {:ok, pid} = SessionServer.start_link({"thread-5", cfg})
+
+      assert {:ok, %SessionResult{}} = SessionServer.deliver(pid, "hello")
+
+      assert :miss = Locator.fetch_transcript(cfg.store, "thread-5")
+    end
+  end
 end

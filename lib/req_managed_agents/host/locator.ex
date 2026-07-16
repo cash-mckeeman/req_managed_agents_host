@@ -53,6 +53,24 @@ defmodule ReqManagedAgents.Host.Locator do
     end)
   end
 
+  @doc "Persist a session transcript under the sibling key `{:transcript, external_id}`."
+  @spec put_transcript(Store.store(), external_id(), [map()]) :: :ok
+  def put_transcript(store, external_id, messages) when is_list(messages) do
+    store_put(store, {:transcript, external_id}, messages)
+  end
+
+  @doc "Fetch a persisted transcript. `:miss` when none was stored."
+  @spec fetch_transcript(Store.store(), external_id()) :: {:ok, [map()]} | :miss
+  def fetch_transcript(store, external_id) do
+    store_get(store, {:transcript, external_id})
+  end
+
+  @doc "Delete a persisted transcript (record-removal cleanup)."
+  @spec delete_transcript(Store.store(), external_id()) :: :ok
+  def delete_transcript(store, external_id) do
+    store_delete(store, {:transcript, external_id})
+  end
+
   @spec update(Store.store(), external_id(), (Record.t() -> Record.t())) :: :ok | :error
   defp update(store, external_id, transform) do
     case fetch(store, external_id) do
@@ -65,15 +83,21 @@ defmodule ReqManagedAgents.Host.Locator do
     end
   end
 
-  @spec store_put(Store.store(), external_id(), Record.t()) :: :ok
+  @spec store_put(Store.store(), Store.key(), Store.value()) :: :ok
   defp store_put({mod, opts}, key, value) do
     ref = mod.ref(opts)
     mod.put(ref, key, value)
   end
 
-  @spec store_get(Store.store(), external_id()) :: {:ok, term()} | :miss
+  @spec store_get(Store.store(), Store.key()) :: {:ok, term()} | :miss
   defp store_get({mod, opts}, key) do
     ref = mod.ref(opts)
     mod.get(ref, key)
+  end
+
+  @spec store_delete(Store.store(), Store.key()) :: :ok
+  defp store_delete({mod, opts}, key) do
+    ref = mod.ref(opts)
+    mod.delete(ref, key)
   end
 end
