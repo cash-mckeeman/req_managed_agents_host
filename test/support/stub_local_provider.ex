@@ -8,6 +8,12 @@ defmodule StubLocalProvider do
   and a canned assistant reply to `conn.history` — so `transcript/1` grows by two entries per
   turn, like a real one-turn chat. Every `open/2` session id + history pair is recorded on an
   owned `Agent`, read back via `opened_with/0`.
+
+  That `Agent` is a single process registered under a module-global name (`__MODULE__.Recorder`),
+  shared by every test in the suite that uses this stub. Under `async: true`, calls from
+  unrelated test modules can interleave with your own — `opened_with/0` returns entries from
+  all of them in call order, not just yours. Filter by a value unique to your call (e.g. the
+  `session_id`) rather than assuming your entries are the only or the last ones.
   """
   @behaviour ReqManagedAgents.Provider
 
