@@ -2,6 +2,17 @@
 
 All notable changes to `req_managed_agents_host` are documented here.
 
+## v0.2.0
+
+- Transcript persistence: providers that emit `SessionResult.transcript`
+  (req_managed_agents >= 0.10, e.g. `Providers.Local`) get it stored under a
+  sibling `{:transcript, external_id}` Store key and re-injected as `history:`
+  on reattach — local conversations now survive process crashes, idle-detach,
+  and full BEAM restarts.
+- Server-held providers (Claude Managed Agents, AgentCore) are unaffected:
+  no transcript emitted, nothing stored, opts unchanged.
+- Requires `{:req_managed_agents, "~> 0.10"}`.
+
 ## v0.1.0
 
 Initial release: a durable, single-node session host over `req_managed_agents`.

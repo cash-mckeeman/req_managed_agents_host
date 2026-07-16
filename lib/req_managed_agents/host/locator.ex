@@ -28,7 +28,18 @@ defmodule ReqManagedAgents.Host.Locator do
     update(store, external_id, fn %Record{} = record -> %Record{record | context_sent: true} end)
   end
 
+  # Transitioning to :deleted also drops the sibling transcript (record-removal cleanup);
+  # :active/:terminated leave it alone — reattach after :terminated still wants its history.
   @spec set_status(Store.store(), external_id(), Record.status()) :: :ok | :error
+  def set_status(store, external_id, :deleted) do
+    with :ok <-
+           update(store, external_id, fn %Record{} = record ->
+             %Record{record | status: :deleted}
+           end) do
+      delete_transcript(store, external_id)
+    end
+  end
+
   def set_status(store, external_id, status) do
     update(store, external_id, fn %Record{} = record -> %Record{record | status: status} end)
   end
