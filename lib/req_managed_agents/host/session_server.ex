@@ -85,6 +85,9 @@ defmodule ReqManagedAgents.Host.SessionServer do
   defp run_turn(%__MODULE__{config: cfg, external_id: external_id}, message) do
     base = [prompt: message, handler: cfg.handler, timeout: cfg.timeout_ms]
 
+    # history_opts precedes cfg.provider_opts here — the opposite of agent_opts' never-shadow
+    # principle below: a persisted transcript's history: wins over (shadows) any explicit
+    # provider_opts[:history] a caller supplies.
     opts =
       case existing_session_id(cfg.store, external_id) do
         nil -> base
