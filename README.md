@@ -13,7 +13,7 @@ session's upstream identity durably persisted so a BEAM restart resumes the conv
 ```elixir
 def deps do
   [
-    {:req_managed_agents_host, "~> 0.1.0"}
+    {:req_managed_agents_host, "~> 0.2.0"}
   ]
 end
 ```
