@@ -1,7 +1,7 @@
 defmodule ReqManagedAgentsHost.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.2.0"
   @source_url "https://github.com/cash-mckeeman/req_managed_agents_host"
 
   def project do
@@ -32,7 +32,7 @@ defmodule ReqManagedAgentsHost.MixProject do
 
   defp deps do
     [
-      {:req_managed_agents, "~> 0.9"},
+      {:req_managed_agents, "~> 0.10"},
       {:jason, "~> 1.4"},
       {:mox, "~> 1.1", only: :test},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},

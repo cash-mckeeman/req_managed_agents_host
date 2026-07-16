@@ -21,6 +21,8 @@ defmodule ReqManagedAgents.Host.HostTest do
 
   defp base_opts(store), do: [provider: StubProvider, handler: EchoHandler, store: store]
 
+  defp local_opts(store), do: [provider: StubLocalProvider, handler: EchoHandler, store: store]
+
   defp external_id, do: "ext-#{System.unique_integer([:positive])}"
 
   test "fresh: send_message returns {:ok, %SessionResult{}} and persists a locator record" do
@@ -43,6 +45,9 @@ defmodule ReqManagedAgents.Host.HostTest do
 
     assert sid in StubProvider.opened_with()
     assert "second" in StubProvider.delivered_messages()
+    # CMA-shaped regression guard: a server-held provider never emits a transcript, so
+    # `history_opts/2` is always a no-op for it — nothing is ever stored to re-inject.
+    assert :miss = Locator.fetch_transcript(store, id)
   end
 
   test "DETS-restart reattach: the locator survives a simulated BEAM restart (durability proof)" do
@@ -72,6 +77,70 @@ defmodule ReqManagedAgents.Host.HostTest do
 
     assert {:ok, %SessionResult{session_id: ^sid}} = Host.send_message(id, "second", opts)
     assert sid in StubProvider.opened_with()
+  end
+
+  describe "transcript re-injection" do
+    test "reattach injects the persisted transcript as history:" do
+      id = external_id()
+      store = ets_store()
+      opts = local_opts(store)
+
+      {:ok, %SessionResult{session_id: sid}} = Host.send_message(id, "first", opts)
+      assert {:ok, %SessionResult{}} = Host.send_message(id, "second", opts)
+
+      # `StubLocalProvider`'s `opened_with/0` recorder is a single global `Agent` shared by
+      # every test (this module and others) that uses the stub, so under `async: true` other
+      # modules' calls can interleave with ours — filter on `sid` (globally unique) rather
+      # than assuming these are the only/last entries.
+      assert {^sid, [_ | _] = injected} =
+               Enum.find(StubLocalProvider.opened_with(), fn {opt_sid, _history} ->
+                 opt_sid == sid
+               end)
+
+      assert Enum.any?(injected, &(&1["content"] == "first"))
+    end
+
+    test "the flagship-shaped proof: local conversation survives full restart over DETS" do
+      id = external_id()
+      name = :"host_test_dets_local_#{System.unique_integer([:positive])}"
+
+      path =
+        Path.join(
+          System.tmp_dir!(),
+          "rma_host_test_local_#{System.unique_integer([:positive])}.dets"
+        )
+
+      on_exit(fn -> File.rm(path) end)
+
+      {:ok, store_pid} = DETS.start_link(name: name, file: path)
+      store = {DETS, name: name, file: path}
+      opts = local_opts(store)
+
+      assert {:ok, %SessionResult{session_id: sid}} = Host.send_message(id, "first", opts)
+
+      # Full restart: kill the live SessionServer through the real supervisor and the DETS
+      # store owner (closes the file) — mirrors the DETS-restart reattach test above exactly,
+      # just with the Local-shaped stub so the transcript re-injection path is exercised too.
+      [{server_pid, nil}] = Registry.lookup(@registry, id)
+      :ok = DynamicSupervisor.terminate_child(SessionSupervisor, server_pid)
+      :ok = GenServer.stop(store_pid)
+
+      # Reopen the DETS store from the same file — the "BEAM restart" for the locator.
+      {:ok, _store_pid2} = DETS.start_link(name: name, file: path)
+
+      assert {:ok, %SessionResult{}} = Host.send_message(id, "still there?", opts)
+
+      assert {^sid, [_ | _] = injected} =
+               Enum.find(StubLocalProvider.opened_with(), fn {opt_sid, _history} ->
+                 opt_sid == sid
+               end)
+
+      assert Enum.any?(injected, &(&1["content"] == "first"))
+
+      # And the stored transcript grew across the restart.
+      assert {:ok, messages} = Locator.fetch_transcript(store, id)
+      assert Enum.any?(messages, &(&1["content"] == "still there?"))
+    end
   end
 
   test "isolation: two different external_ids run independently" do

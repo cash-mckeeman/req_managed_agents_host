@@ -60,6 +60,24 @@ defmodule ReqManagedAgents.Host.LocatorTest do
     assert Locator.list_by(store, %{tenant: "acme", tier: "gold"}) == [a]
   end
 
+  test "set_status/3 :deleted drops the sibling transcript", %{store: store} do
+    record = Record.new("gone")
+    :ok = Locator.put(store, record)
+    :ok = Locator.put_transcript(store, "gone", [%{"role" => "user", "content" => "x"}])
+
+    assert :ok = Locator.set_status(store, "gone", :deleted)
+    assert :miss = Locator.fetch_transcript(store, "gone")
+  end
+
+  test "set_status/3 :terminated does NOT touch the transcript", %{store: store} do
+    record = Record.new("kept")
+    :ok = Locator.put(store, record)
+    :ok = Locator.put_transcript(store, "kept", [%{"role" => "user", "content" => "x"}])
+
+    assert :ok = Locator.set_status(store, "kept", :terminated)
+    assert {:ok, [_ | _]} = Locator.fetch_transcript(store, "kept")
+  end
+
   test "list/1 ignores non-Record values that may share the store", %{store: store} do
     {mod, opts} = store
     ref = mod.ref(opts)

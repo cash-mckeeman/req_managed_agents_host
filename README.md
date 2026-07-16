@@ -86,6 +86,15 @@ opts = [provider: MyProvider, handler: MyHandler, store: store, idle_timeout_ms:
   child; one session crashing never affects another.
 - **`Store.ETS` vs. `Store.DETS`.** Pick `ETS` for process-crash isolation only; pick `DETS`
   when the locator must also survive a BEAM/node restart.
+- **Local provider continuity.** Server-held providers (Claude Managed Agents, AgentCore) keep
+  the conversation upstream — the `Locator`'s session pointer alone is enough to reattach.
+  Client-held providers (e.g. `req_managed_agents`'s `Providers.Local`) hold the conversation
+  in the caller's process instead, so the pointer alone isn't enough: on every successful turn,
+  the provider's emitted transcript (`SessionResult.transcript`) is stored under a sibling
+  `{:transcript, external_id}` key in your chosen `Store`, and re-seeded as `history:` the next
+  time that external id runs — so a Local conversation survives a crash, an idle-detach, or a
+  full BEAM restart exactly like the session pointer does. Providers that never emit a
+  transcript are unaffected: nothing is stored, and no `history:` opt is added.
 
 ## License
 

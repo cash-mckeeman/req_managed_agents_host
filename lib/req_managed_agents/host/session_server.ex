@@ -15,6 +15,7 @@ defmodule ReqManagedAgents.Host.SessionServer do
   external id starts a fresh server and reattaches instead of minting a new upstream session.
   """
   use GenServer
+  require Logger
 
   alias ReqManagedAgents.Host.{Config, Locator}
   alias ReqManagedAgents.Host.Locator.Record
@@ -66,7 +67,12 @@ defmodule ReqManagedAgents.Host.SessionServer do
   def handle_call({:send, message}, _from, %__MODULE__{} = state) do
     state = cancel_idle(state)
     result = run_turn(state, message)
-    if match?({:ok, _}, result), do: persist(state, result)
+
+    if match?({:ok, _}, result) do
+      persist(state, result)
+      persist_transcript(state, result)
+    end
+
     {:reply, result, arm_idle(state)}
   end
 
@@ -83,7 +89,7 @@ defmodule ReqManagedAgents.Host.SessionServer do
       case existing_session_id(cfg.store, external_id) do
         nil -> base
         session_id -> [{:session_id, session_id} | base]
-      end ++ agent_opts(cfg) ++ cfg.provider_opts
+      end ++ history_opts(cfg.store, external_id) ++ agent_opts(cfg) ++ cfg.provider_opts
 
     Session.run(cfg.provider, opts)
   end
@@ -93,6 +99,18 @@ defmodule ReqManagedAgents.Host.SessionServer do
     case Locator.fetch(store, external_id) do
       {:ok, %Record{session_id: session_id}} -> session_id
       :error -> nil
+    end
+  end
+
+  # Re-injection: a persisted transcript rides back in as history: (Local-style
+  # providers seed it; server-held providers never stored one, so this is a no-op).
+  # Local may mint a fresh session_id per run — harmless: the transcript is keyed by
+  # external_id and persist/2 already updates the record's session_id each turn.
+  @spec history_opts(Config.store(), Locator.external_id()) :: keyword()
+  defp history_opts(store, external_id) do
+    case Locator.fetch_transcript(store, external_id) do
+      {:ok, messages} -> [history: messages]
+      :miss -> []
     end
   end
 
@@ -133,6 +151,24 @@ defmodule ReqManagedAgents.Host.SessionServer do
 
   defp handle_id(nil, _key), do: nil
   defp handle_id(handle, key), do: Map.fetch!(handle, key)
+
+  # Transcript persistence (sibling key): store what the provider emitted, verbatim.
+  # A write failure degrades durability but must not fail the turn.
+  @spec persist_transcript(t(), {:ok, SessionResult.t()}) :: :ok
+  defp persist_transcript(
+         %__MODULE__{config: cfg, external_id: external_id},
+         {:ok, %SessionResult{transcript: messages}}
+       )
+       when is_list(messages) do
+    Locator.put_transcript(cfg.store, external_id, messages)
+  rescue
+    e ->
+      Logger.warning("transcript persistence failed for #{external_id}: #{Exception.message(e)}")
+
+      :ok
+  end
+
+  defp persist_transcript(_state, _result), do: :ok
 
   # ── idle timer ─────────────────────────────────────────────────────────
 
