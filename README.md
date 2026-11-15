@@ -1,5 +1,7 @@
 # req_managed_agents_host
 
+> **Moved.** `req_managed_agents_host` now lives in [req_managed_agents](https://github.com/cash-mckeeman/req_managed_agents/tree/main/req_managed_agents_host) and is released from there. This repository holds the history up to 0.3.0 and is archived.
+
 Durable single-node session host for [`req_managed_agents`](https://hex.pm/packages/req_managed_agents).
 
 Turns RMA's per-call `ReqManagedAgents.Session` into a supervised, crash-survivable,
